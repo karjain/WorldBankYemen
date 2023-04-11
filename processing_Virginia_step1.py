@@ -1,4 +1,5 @@
 ### Copy files in seperate folders bases on labels 
+# %%
 import pandas as pd
 import os
 
@@ -6,6 +7,7 @@ labels = pd.read_csv('/Users/kar/Documents/maps/Us images/roadRunner_labels.csv'
 print(labels['int_label'].value_counts())
 print(labels.head())
 
+# %%
 
 filepaths = os.listdir('/Users/kar/Documents/maps/Us images/centered_roadrunner_pngs/')
 print(len(filepaths))
@@ -40,3 +42,11 @@ for i in filepaths_1:
 
 for i in filepaths_2:
     shutil.copy(datafolder+i, '/Users/kar/Documents/maps/Us images/data/2/')
+
+
+
+# %%
+import glob
+x1 = [x for x in glob.glob('/Users/kar/Documents/maps/tiles/**/*.shp', recursive = True)]
+
+# %%

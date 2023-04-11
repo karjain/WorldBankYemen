@@ -1,14 +1,18 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-import torch.optim.lr_scheduler as lr_scheduler
-from torch.optim.lr_scheduler import _LRScheduler
-import torch.utils.data as data
+"""
+Split files in train and test folders
+"""
 
-import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-import torchvision.models as models
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+# import torch.optim as optim
+# import torch.optim.lr_scheduler as lr_scheduler
+# from torch.optim.lr_scheduler import _LRScheduler
+# import torch.utils.data as data
+
+# import torchvision.transforms as transforms
+# import torchvision.datasets as datasets
+# import torchvision.models as models
 
 from sklearn import decomposition
 from sklearn import manifold
@@ -30,9 +34,9 @@ SEED = 1234
 
 random.seed(SEED)
 np.random.seed(SEED)
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-torch.backends.cudnn.deterministic = True
+# torch.manual_seed(SEED)
+# torch.cuda.manual_seed(SEED)
+# torch.backends.cudnn.deterministic = True
 
 
 
@@ -113,14 +117,14 @@ This train/test split only needs to be created once and does not need to be crea
 
 # !unzip -q /content/drive/MyDrive/Data_ml/maps/data_2.zip -d /content/drive/MyDrive/Data_ml/maps/
 
-ROOT = '/home/ubuntu/cap/data'
-TRAIN_RATIO = 0.8
+ROOT = '/Users/kar/Documents/maps/tiles/data'
+TRAIN_RATIO = 0.85
 
 data_dir = os.path.join(ROOT, 'images')
 # images_dir = os.path.join(data_dir, 'images')
 images_dir = ROOT
-train_dir = os.path.join(ROOT, 'data', 'train')
-test_dir = os.path.join(ROOT, 'data','test')
+train_dir = os.path.join(ROOT,  'train')
+test_dir = os.path.join(ROOT, 'test')
 
 if os.path.exists(train_dir):
     shutil.rmtree(train_dir)
@@ -131,17 +135,19 @@ os.makedirs(train_dir)
 os.makedirs(test_dir)
 
 classes = os.listdir(data_dir)
+classes.remove('.DS_Store')
 print(classes)
 #
 for c in classes:
 
     class_dir = os.path.join(data_dir, c)
-    print(f'clas_dir={class_dir}')
+    # print(f'clas_dir={class_dir}')
 
     images = os.listdir(class_dir)
-    print(f'images={images}')
+    # print(f'images={images}')
 
     n_train = int(len(images) * TRAIN_RATIO)
+    print(f'len(images) = {len(images)}, n_train= {n_train}, {len(images)-n_train}')
 
     train_images = images[:n_train]
     test_images = images[n_train:]
