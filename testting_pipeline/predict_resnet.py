@@ -71,6 +71,7 @@ import os
 import random
 import shutil
 import time
+import pandas as pd
 
 """Next, we'll set the random seeds for reproducability."""
 
@@ -184,7 +185,10 @@ TRAIN_RATIO = 0.8
 data_dir = ROOT
 images_dir = ROOT
 train_dir = os.path.join(ROOT, 'data', 'train')
-test_dir = os.path.join(ROOT, 'data','test')
+test_dir = os.path.join(ROOT, 'data','to_prdict','images')
+
+classes = os.listdir(train_dir)
+print(f'classes={classes}')
 
 """ 
 Run Block to split files into folders in train and test
@@ -246,18 +250,18 @@ Again, this only needs to be calculated once per dataset and the means and stds 
 train_data = datasets.ImageFolder(root = train_dir, 
                                   transform = transforms.ToTensor())
 
-means = torch.zeros(3)
-stds = torch.zeros(3)
-
-for img, label in train_data:
-    means += torch.mean(img, dim = (1,2))
-    stds += torch.std(img, dim = (1,2))
-
-means /= len(train_data)
-stds /= len(train_data)
-    
-print(f'Calculated means: {means}')
-print(f'Calculated stds: {stds}')
+# means = torch.zeros(3)
+# stds = torch.zeros(3)
+#
+# for img, label in train_data:
+#     means += torch.mean(img, dim = (1,2))
+#     stds += torch.std(img, dim = (1,2))
+#
+# means /= len(train_data)
+# stds /= len(train_data)
+#
+# print(f'Calculated means: {means}')
+# print(f'Calculated stds: {stds}')
 
 """Now to actually load our data. As we are going to be using a pre-trained model we will need to ensure that our images are the same size and have the same normalization as those used to train the model - which we find on the torchvision [models](https://pytorch.org/vision/stable/models.html) page.
 
@@ -294,6 +298,8 @@ train_data = datasets.ImageFolder(root = train_dir,
 test_data = datasets.ImageFolder(root = test_dir, 
                                  transform = test_transforms)
 
+image_index = test_data.imgs
+
 """...create the validation split..."""
 
 VALID_RATIO = 0.9
@@ -328,6 +334,9 @@ valid_iterator = data.DataLoader(valid_data,
 
 test_iterator = data.DataLoader(test_data, 
                                 batch_size = BATCH_SIZE)
+
+# for data, target, index in test_iterator:
+#     print(f'data={data}, target={target}')
 
 """To ensure the images have been processed correctly we can plot a few of them - ensuring we re-normalize the images so their colors look right."""
 
@@ -366,9 +375,10 @@ def plot_images(images, labels, classes, normalize = True):
 N_IMAGES = 25
 
 images, labels = zip(*[(image, label) for image, label in 
-                           [train_data[i] for i in range(N_IMAGES)]])
+                           [test_data[i] for i in range(N_IMAGES)]])
 
-classes = test_data.classes
+# classes = test_data.classes
+# print(f'test_data classes = {classes}')
 
 plot_images(images, labels, classes)
 plt.show()
@@ -806,12 +816,13 @@ pretrained_model = models.resnet50(pretrained = True)
 
 """We can see that the final linear layer for the classification, `fc`, has a 1000-dimensional output as it was pre-trained on the ImageNet dataset, which has 1000 classes. """
 
-print(pretrained_model)
+# print(pretrained_model)
 
 """Our dataset, however, only has 200 classes, so we first create a new linear layer with the required dimensions."""
 
 IN_FEATURES = pretrained_model.fc.in_features 
 OUTPUT_DIM = len(test_data.classes)
+print(f'OUTPUT_DIM ={OUTPUT_DIM}')
 
 fc = nn.Linear(IN_FEATURES, OUTPUT_DIM)
 
@@ -967,36 +978,36 @@ class IteratorWrapper:
 END_LR = 10
 NUM_ITER = 100
 
-lr_finder = LRFinder(model, optimizer, criterion, device)
-lrs, losses = lr_finder.range_test(train_iterator, END_LR, NUM_ITER)
-
-"""Next, we define a function to plot the results of the range test."""
-
-def plot_lr_finder(lrs, losses, skip_start = 5, skip_end = 5):
-    
-    if skip_end == 0:
-        lrs = lrs[skip_start:]
-        losses = losses[skip_start:]
-    else:
-        lrs = lrs[skip_start:-skip_end]
-        losses = losses[skip_start:-skip_end]
-    
-    fig = plt.figure(figsize = (16,8))
-    ax = fig.add_subplot(1,1,1)
-    ax.plot(lrs, losses)
-    ax.set_xscale('log')
-    ax.set_xlabel('Learning rate')
-    ax.set_ylabel('Loss')
-    ax.grid(True, 'both', 'x')
-    # plt.show()
-
-"""We can see that the loss reaches a minimum at around $3x10^{-3}$.
-
-A good learning rate to choose here would be the middle of the steepest downward curve - which is around $1x10^{-3}$.
-"""
-
-plot_lr_finder(lrs, losses, skip_start = 30, skip_end = 30)
-plt.show()
+# lr_finder = LRFinder(model, optimizer, criterion, device)
+# lrs, losses = lr_finder.range_test(train_iterator, END_LR, NUM_ITER)
+#
+# """Next, we define a function to plot the results of the range test."""
+#
+# def plot_lr_finder(lrs, losses, skip_start = 5, skip_end = 5):
+#
+#     if skip_end == 0:
+#         lrs = lrs[skip_start:]
+#         losses = losses[skip_start:]
+#     else:
+#         lrs = lrs[skip_start:-skip_end]
+#         losses = losses[skip_start:-skip_end]
+#
+#     fig = plt.figure(figsize = (16,8))
+#     ax = fig.add_subplot(1,1,1)
+#     ax.plot(lrs, losses)
+#     ax.set_xscale('log')
+#     ax.set_xlabel('Learning rate')
+#     ax.set_ylabel('Loss')
+#     ax.grid(True, 'both', 'x')
+#     # plt.show()
+#
+# """We can see that the loss reaches a minimum at around $3x10^{-3}$.
+#
+# A good learning rate to choose here would be the middle of the steepest downward curve - which is around $1x10^{-3}$.
+# """
+#
+# plot_lr_finder(lrs, losses, skip_start = 30, skip_end = 30)
+# plt.show()
 
 """We can then set the learning rates of our model using discriminative fine-tuning - a technique used in transfer learning where later layers in a model have higher learning rates than earlier ones.
 
@@ -1161,35 +1172,35 @@ We get around 80% top-1 and 95% top-5 validation accuracy.
 
 best_valid_loss = float('inf')
 
-for epoch in range(EPOCHS):
-
-    start_time = time.monotonic()
-
-    train_loss, train_acc_1, train_acc_5 = train(model, train_iterator, optimizer, criterion, scheduler, device)
-    valid_loss, valid_acc_1, valid_acc_5 = evaluate(model, valid_iterator, criterion, device)
-
-    if valid_loss < best_valid_loss:
-        best_valid_loss = valid_loss
-        torch.save(model.state_dict(), 'tut5-model.pt')
-
-    end_time = time.monotonic()
-
-    epoch_mins, epoch_secs = epoch_time(start_time, end_time)
-
-    print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
-    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc @1: {train_acc_1*100:6.2f}% | ' \
-          f'Train Acc @1: {train_acc_5*100:6.2f}%')
-    print(f'\tValid Loss: {valid_loss:.3f} | Valid Acc @1: {valid_acc_1*100:6.2f}% | ' \
-          f'Valid Acc @1: {valid_acc_5*100:6.2f}%')
+# for epoch in range(EPOCHS):
+#
+#     start_time = time.monotonic()
+#
+#     train_loss, train_acc_1, train_acc_5 = train(model, train_iterator, optimizer, criterion, scheduler, device)
+#     valid_loss, valid_acc_1, valid_acc_5 = evaluate(model, valid_iterator, criterion, device)
+#
+#     if valid_loss < best_valid_loss:
+#         best_valid_loss = valid_loss
+#         torch.save(model.state_dict(), 'tut5-model.pt')
+#
+#     end_time = time.monotonic()
+#
+#     epoch_mins, epoch_secs = epoch_time(start_time, end_time)
+#
+#     print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
+#     print(f'\tTrain Loss: {train_loss:.3f} | Train Acc @1: {train_acc_1*100:6.2f}% | ' \
+#           f'Train Acc @1: {train_acc_5*100:6.2f}%')
+#     print(f'\tValid Loss: {valid_loss:.3f} | Valid Acc @1: {valid_acc_1*100:6.2f}% | ' \
+#           f'Valid Acc @1: {valid_acc_5*100:6.2f}%')
 
 """The test accuracies are a little lower than the validation accuracies, but not by so much that we should be concerned."""
 
 model.load_state_dict(torch.load('tut5-model.pt'))
 
-test_loss, test_acc_1, test_acc_5 = evaluate(model, test_iterator, criterion, device)
+# test_loss, test_acc_1, test_acc_5 = evaluate(model, test_iterator, criterion, device)
 
-print(f'Test Loss: {test_loss:.3f} | Test Acc @1: {test_acc_1*100:6.2f}% | ' \
-      f'Test Acc @1: {test_acc_5*100:6.2f}%')
+# print(f'Test Loss: {test_loss:.3f} | Test Acc @1: {test_acc_1*100:6.2f}% | ' \
+#       f'Test Acc @1: {test_acc_5*100:6.2f}%')
 
 """### Examining the Model
 
@@ -1216,258 +1227,266 @@ def get_predictions(model, iterator):
 
             y_prob = F.softmax(y_pred, dim = -1)
             top_pred = y_prob.argmax(1, keepdim = True)
-
+            # print(f'image= {x.cpu()}')
+            # print(f'top_pred={top_pred}')
             images.append(x.cpu())
             labels.append(y.cpu())
             probs.append(y_prob.cpu())
 
     images = torch.cat(images, dim = 0)
+
     labels = torch.cat(labels, dim = 0)
     probs = torch.cat(probs, dim = 0)
 
     return images, labels, probs
 
 images, labels, probs = get_predictions(model, test_iterator)
-
+# print(f'images={images}')
 """... which we then use to get the predicted labels."""
 
 pred_labels = torch.argmax(probs, 1)
+pred_labels_list = pred_labels.tolist()
+
+result = pd.DataFrame({'index':image_index, 'predicted_label':pred_labels_list })
+result.to_csv('results')
+
+
 
 """We then use this to plot a confusion matrix.
 
 A 200x200 confusion matrix is pretty large, so we've increased the figure size and removed the colorbar. The text is still too small to read, but all we care about is that the diagonals are generally darker than the rest of the matrix - which they are.
 """
 
-def plot_confusion_matrix(labels, pred_labels, classes):
-
-    fig = plt.figure(figsize = (50, 50));
-    ax = fig.add_subplot(1, 1, 1);
-    cm = confusion_matrix(labels, pred_labels);
-    cm = ConfusionMatrixDisplay(cm, display_labels = classes);
-    cm.plot(values_format = 'd', cmap = 'Blues', ax = ax)
-    fig.delaxes(fig.axes[1]) #delete colorbar
-    plt.xticks(rotation = 90)
-    plt.xlabel('Predicted Label', fontsize = 50)
-    plt.ylabel('True Label', fontsize = 50)
-    plt.show()
-
-
-plot_confusion_matrix(labels, pred_labels, classes)
-plt.show()
-
-"""We can then get all of the correct predictions, filter them out, and then sort all of the incorrect predictions based on how confident they were on their incorrect prediction."""
-
-corrects = torch.eq(labels, pred_labels)
-
-incorrect_examples = []
-
-for image, label, prob, correct in zip(images, labels, probs, corrects):
-    if not correct:
-        incorrect_examples.append((image, label, prob))
-
-incorrect_examples.sort(reverse = True, key = lambda x: torch.max(x[2], dim = 0).values)
-
-"""We can then plot the most incorrectly predicted images along with the predicted class and the actual class. """
-
-def plot_most_incorrect(incorrect, classes, n_images, normalize = True):
-
-    rows = int(np.sqrt(n_images))
-    cols = int(np.sqrt(n_images))
-
-    fig = plt.figure(figsize = (25, 20))
-
-    for i in range(rows*cols):
-
-        ax = fig.add_subplot(rows, cols, i+1)
-
-        image, true_label, probs = incorrect[i]
-        image = image.permute(1, 2, 0)
-        true_prob = probs[true_label]
-        incorrect_prob, incorrect_label = torch.max(probs, dim = 0)
-        true_class = classes[true_label]
-        incorrect_class = classes[incorrect_label]
-
-        if normalize:
-            image = normalize_image(image)
-
-        ax.imshow(image.cpu().numpy())
-        ax.set_title(f'true label: {true_class} ({true_prob:.3f})\n' \
-                     f'pred label: {incorrect_class} ({incorrect_prob:.3f})')
-        ax.axis('off')
-
-    fig.subplots_adjust(hspace=0.4)
-
-"""From the names of the classes (and a bit of image searching) we can see that the incorrect predictions are usually sensible, e.g. magnolia warbler and cape may warbler, marsh wren and carolina wren.
-
-The most incorrectly predicted image might also be a mislabeled example as worm eating warblers do not have a black and white underside.
-"""
-
-N_IMAGES = 12
-
-plot_most_incorrect(incorrect_examples, classes, N_IMAGES)
-plt.show()
-
-"""We can also get the representations from the model in order to perform some dimensionality reduction techniques.
-
-In this notebook we'll only get the output representations, and not the intermediate ones.
-"""
-
-def get_representations(model, iterator):
-
-    model.eval()
-
-    outputs = []
-    intermediates = []
-    labels = []
-
-    with torch.no_grad():
-
-        for (x, y) in iterator:
-
-            x = x.to(device)
-
-            y_pred, _ = model(x)
-
-            outputs.append(y_pred.cpu())
-            labels.append(y)
-
-    outputs = torch.cat(outputs, dim = 0)
-    labels = torch.cat(labels, dim = 0)
-
-    return outputs, labels
-
-outputs, labels = get_representations(model, train_iterator)
-
-"""We can then perform PCA on these representations to plot them in two dimensions."""
-
-def get_pca(data, n_components = 2):
-    pca = decomposition.PCA()
-    pca.n_components = n_components
-    pca_data = pca.fit_transform(data)
-    return pca_data
-
-"""As there are 200 classes, it is difficult for every class to have a unique color. 
-
-Also a legend with 200 elements is quite large, so we do not plot it - however we leave the code (commented out) to do so if required.
-"""
-
-def plot_representations(data, labels, classes, n_images = None):
-
-    if n_images is not None:
-        data = data[:n_images]
-        labels = labels[:n_images]
-
-    fig = plt.figure(figsize = (15, 15))
-    ax = fig.add_subplot(111)
-    scatter = ax.scatter(data[:, 0], data[:, 1], c = labels, cmap = 'hsv')
-    #handles, _ = scatter.legend_elements(num = None)
-    #legend = plt.legend(handles = handles, labels = classes)
-
-"""The classes do not seem as well separated as in previous notebooks, although this is most probably due to there being so many classes."""
-
-output_pca_data = get_pca(outputs)
-plot_representations(output_pca_data, labels, classes)
-plt.show()
-
-"""Next up, we plot the t-SNE data. As we have a much smaller dataset than the CIFAR datasets used previously we can perform t-SNE on the entire dataset in a reasonable amount of time."""
-
-def get_tsne(data, n_components = 2, n_images = None):
-
-    if n_images is not None:
-        data = data[:n_images]
-
-    tsne = manifold.TSNE(n_components = n_components, random_state = 0)
-    tsne_data = tsne.fit_transform(data)
-    return tsne_data
-
-"""The classes are definitely well separated here - which is usually a good sign."""
-
-output_tsne_data = get_tsne(outputs)
-plot_representations(output_tsne_data, labels, classes)
-
-"""We can then plot what a few of the images look like after having gone through the first convolutional layer."""
-
-def plot_filtered_images(images, filters, n_filters = None, normalize = True):
-
-    images = torch.cat([i.unsqueeze(0) for i in images], dim = 0).cpu()
-    filters = filters.cpu()
-
-    if n_filters is not None:
-        filters = filters[:n_filters]
-
-    n_images = images.shape[0]
-    n_filters = filters.shape[0]
-
-    filtered_images = F.conv2d(images, filters)
-
-    fig = plt.figure(figsize = (30, 30))
-
-    for i in range(n_images):
-
-        image = images[i]
-
-        if normalize:
-            image = normalize_image(image)
-
-        ax = fig.add_subplot(n_images, n_filters+1, i+1+(i*n_filters))
-        ax.imshow(image.permute(1,2,0).numpy())
-        ax.set_title('Original')
-        ax.axis('off')
-
-        for j in range(n_filters):
-            image = filtered_images[i][j]
-
-            if normalize:
-                image = normalize_image(image)
-
-            ax = fig.add_subplot(n_images, n_filters+1, i+1+(i*n_filters)+j+1)
-            ax.imshow(image.numpy(), cmap = 'bone')
-            ax.set_title(f'Filter {j+1}')
-            ax.axis('off');
-
-    fig.subplots_adjust(hspace = -0.7)
-
-"""We can see that the filters perform many different types of image processing - from edge detection to color inversion."""
-
-N_IMAGES = 5
-N_FILTERS = 7
-
-images = [image for image, label in [train_data[i] for i in range(N_IMAGES)]]
-filters = model.conv1.weight.data
-
-plot_filtered_images(images, filters, N_FILTERS)
-plt.show()
-
-"""Finally, we can plot the values of the filters themselves."""
-
-def plot_filters(filters, normalize = True):
-
-    filters = filters.cpu()
-
-    n_filters = filters.shape[0]
-
-    rows = int(np.sqrt(n_filters))
-    cols = int(np.sqrt(n_filters))
-
-    fig = plt.figure(figsize = (30, 15))
-
-    for i in range(rows*cols):
-
-        image = filters[i]
-
-        if normalize:
-            image = normalize_image(image)
-
-        ax = fig.add_subplot(rows, cols, i+1)
-        ax.imshow(image.permute(1, 2, 0))
-        ax.axis('off')
-
-    fig.subplots_adjust(wspace = -0.9)
-
-"""There are some interesting patterns contained in these filters, however all of these were already present in the pre-trained ResNet model. The learning rate used on this initial convolutional layer was most probably too small to change these significantly."""
-
-plot_filters(filters)
-plt.show()
+# def plot_confusion_matrix(labels, pred_labels, classes):
+#
+#     fig = plt.figure(figsize = (50, 50));
+#     ax = fig.add_subplot(1, 1, 1);
+#     cm = confusion_matrix(labels, pred_labels);
+#     cm = ConfusionMatrixDisplay(cm, display_labels = classes);
+#     cm.plot(values_format = 'd', cmap = 'Blues', ax = ax)
+#     fig.delaxes(fig.axes[1]) #delete colorbar
+#     plt.xticks(rotation = 90)
+#     plt.xlabel('Predicted Label', fontsize = 50)
+#     plt.ylabel('True Label', fontsize = 50)
+#     plt.show()
+#
+#
+# plot_confusion_matrix(labels, pred_labels, classes)
+# plt.show()
+#
+# """We can then get all of the correct predictions, filter them out, and then sort all of the incorrect predictions based on how confident they were on their incorrect prediction."""
+#
+# corrects = torch.eq(labels, pred_labels)
+#
+# incorrect_examples = []
+#
+# for image, label, prob, correct in zip(images, labels, probs, corrects):
+#     if not correct:
+#         incorrect_examples.append((image, label, prob))
+#
+# incorrect_examples.sort(reverse = True, key = lambda x: torch.max(x[2], dim = 0).values)
+#
+# """We can then plot the most incorrectly predicted images along with the predicted class and the actual class. """
+#
+# def plot_most_incorrect(incorrect, classes, n_images, normalize = True):
+#
+#     rows = int(np.sqrt(n_images))
+#     cols = int(np.sqrt(n_images))
+#
+#     fig = plt.figure(figsize = (25, 20))
+#
+#     for i in range(rows*cols):
+#
+#         ax = fig.add_subplot(rows, cols, i+1)
+#
+#         image, true_label, probs = incorrect[i]
+#         image = image.permute(1, 2, 0)
+#         true_prob = probs[true_label]
+#         incorrect_prob, incorrect_label = torch.max(probs, dim = 0)
+#         true_class = classes[true_label]
+#         incorrect_class = classes[incorrect_label]
+#
+#         if normalize:
+#             image = normalize_image(image)
+#
+#         ax.imshow(image.cpu().numpy())
+#         ax.set_title(f'true label: {true_class} ({true_prob:.3f})\n' \
+#                      f'pred label: {incorrect_class} ({incorrect_prob:.3f})')
+#         ax.axis('off')
+#
+#     fig.subplots_adjust(hspace=0.4)
+#
+# """From the names of the classes (and a bit of image searching) we can see that the incorrect predictions are usually sensible, e.g. magnolia warbler and cape may warbler, marsh wren and carolina wren.
+#
+# The most incorrectly predicted image might also be a mislabeled example as worm eating warblers do not have a black and white underside.
+# """
+#
+# N_IMAGES = 12
+#
+# plot_most_incorrect(incorrect_examples, classes, N_IMAGES)
+# plt.show()
+#
+# """We can also get the representations from the model in order to perform some dimensionality reduction techniques.
+#
+# In this notebook we'll only get the output representations, and not the intermediate ones.
+# """
+#
+# def get_representations(model, iterator):
+#
+#     model.eval()
+#
+#     outputs = []
+#     intermediates = []
+#     labels = []
+#
+#     with torch.no_grad():
+#
+#         for (x, y) in iterator:
+#
+#             x = x.to(device)
+#
+#             y_pred, _ = model(x)
+#
+#             outputs.append(y_pred.cpu())
+#             labels.append(y)
+#
+#     outputs = torch.cat(outputs, dim = 0)
+#     labels = torch.cat(labels, dim = 0)
+#
+#     return outputs, labels
+#
+# outputs, labels = get_representations(model, train_iterator)
+#
+# """We can then perform PCA on these representations to plot them in two dimensions."""
+#
+# def get_pca(data, n_components = 2):
+#     pca = decomposition.PCA()
+#     pca.n_components = n_components
+#     pca_data = pca.fit_transform(data)
+#     return pca_data
+#
+# """As there are 200 classes, it is difficult for every class to have a unique color.
+#
+# Also a legend with 200 elements is quite large, so we do not plot it - however we leave the code (commented out) to do so if required.
+# """
+#
+# def plot_representations(data, labels, classes, n_images = None):
+#
+#     if n_images is not None:
+#         data = data[:n_images]
+#         labels = labels[:n_images]
+#
+#     fig = plt.figure(figsize = (15, 15))
+#     ax = fig.add_subplot(111)
+#     scatter = ax.scatter(data[:, 0], data[:, 1], c = labels, cmap = 'hsv')
+#     #handles, _ = scatter.legend_elements(num = None)
+#     #legend = plt.legend(handles = handles, labels = classes)
+#
+# """The classes do not seem as well separated as in previous notebooks, although this is most probably due to there being so many classes."""
+#
+# output_pca_data = get_pca(outputs)
+# plot_representations(output_pca_data, labels, classes)
+# plt.show()
+#
+# """Next up, we plot the t-SNE data. As we have a much smaller dataset than the CIFAR datasets used previously we can perform t-SNE on the entire dataset in a reasonable amount of time."""
+#
+# def get_tsne(data, n_components = 2, n_images = None):
+#
+#     if n_images is not None:
+#         data = data[:n_images]
+#
+#     tsne = manifold.TSNE(n_components = n_components, random_state = 0)
+#     tsne_data = tsne.fit_transform(data)
+#     return tsne_data
+#
+# """The classes are definitely well separated here - which is usually a good sign."""
+#
+# output_tsne_data = get_tsne(outputs)
+# plot_representations(output_tsne_data, labels, classes)
+#
+# """We can then plot what a few of the images look like after having gone through the first convolutional layer."""
+#
+# def plot_filtered_images(images, filters, n_filters = None, normalize = True):
+#
+#     images = torch.cat([i.unsqueeze(0) for i in images], dim = 0).cpu()
+#     filters = filters.cpu()
+#
+#     if n_filters is not None:
+#         filters = filters[:n_filters]
+#
+#     n_images = images.shape[0]
+#     n_filters = filters.shape[0]
+#
+#     filtered_images = F.conv2d(images, filters)
+#
+#     fig = plt.figure(figsize = (30, 30))
+#
+#     for i in range(n_images):
+#
+#         image = images[i]
+#
+#         if normalize:
+#             image = normalize_image(image)
+#
+#         ax = fig.add_subplot(n_images, n_filters+1, i+1+(i*n_filters))
+#         ax.imshow(image.permute(1,2,0).numpy())
+#         ax.set_title('Original')
+#         ax.axis('off')
+#
+#         for j in range(n_filters):
+#             image = filtered_images[i][j]
+#
+#             if normalize:
+#                 image = normalize_image(image)
+#
+#             ax = fig.add_subplot(n_images, n_filters+1, i+1+(i*n_filters)+j+1)
+#             ax.imshow(image.numpy(), cmap = 'bone')
+#             ax.set_title(f'Filter {j+1}')
+#             ax.axis('off');
+#
+#     fig.subplots_adjust(hspace = -0.7)
+#
+# """We can see that the filters perform many different types of image processing - from edge detection to color inversion."""
+#
+# N_IMAGES = 5
+# N_FILTERS = 7
+#
+# images = [image for image, label in [train_data[i] for i in range(N_IMAGES)]]
+# filters = model.conv1.weight.data
+#
+# plot_filtered_images(images, filters, N_FILTERS)
+# plt.show()
+#
+# """Finally, we can plot the values of the filters themselves."""
+#
+# def plot_filters(filters, normalize = True):
+#
+#     filters = filters.cpu()
+#
+#     n_filters = filters.shape[0]
+#
+#     rows = int(np.sqrt(n_filters))
+#     cols = int(np.sqrt(n_filters))
+#
+#     fig = plt.figure(figsize = (30, 15))
+#
+#     for i in range(rows*cols):
+#
+#         image = filters[i]
+#
+#         if normalize:
+#             image = normalize_image(image)
+#
+#         ax = fig.add_subplot(rows, cols, i+1)
+#         ax.imshow(image.permute(1, 2, 0))
+#         ax.axis('off')
+#
+#     fig.subplots_adjust(wspace = -0.9)
+#
+# """There are some interesting patterns contained in these filters, however all of these were already present in the pre-trained ResNet model. The learning rate used on this initial convolutional layer was most probably too small to change these significantly."""
+#
+# plot_filters(filters)
+# plt.show()
 
 """### Conclusions
 
