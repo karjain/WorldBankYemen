@@ -117,7 +117,7 @@ This train/test split only needs to be created once and does not need to be crea
 
 # !unzip -q /content/drive/MyDrive/Data_ml/maps/data_2.zip -d /content/drive/MyDrive/Data_ml/maps/
 
-ROOT = '/Users/kar/Documents/maps/tiles/data'
+ROOT = '/Users/kar/Documents/maps/tiles/data/additional_train_data/merge_train_ds'
 TRAIN_RATIO = 0.85
 
 data_dir = os.path.join(ROOT, 'images')

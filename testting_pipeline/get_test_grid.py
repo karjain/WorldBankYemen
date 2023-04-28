@@ -13,7 +13,7 @@ prefix_list = ['R2C3','R2C4','R3C3','R3C4', 'R4C3','R4C4']
 with open(f'/Users/kar/Documents/maps/tiles/road_grids_mapping.json') as fp:
     parsed_json = json.load(fp)
 grids_ = list(parsed_json.values())
-grids_names = flatlist=[element for sublist in grids_ for element in sublist]
+grids_names = [element for sublist in grids_ for element in sublist]
 tile_grid = {}
 
 for i in grids_names:

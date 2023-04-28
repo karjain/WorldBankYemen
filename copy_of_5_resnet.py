@@ -72,6 +72,7 @@ import random
 import shutil
 import time
 
+
 """Next, we'll set the random seeds for reproducability."""
 
 SEED = 1234
@@ -173,18 +174,14 @@ This train/test split only needs to be created once and does not need to be crea
 **Note:** `ImageFolder` will only load files that have image related extensions, i.e. jpg/jpeg/png, so if there was, for example, a `.txt` file in one of the class folders then it would not be loaded with the images. If we wanted more flexibility when deciding which files to load or not - such as not loading .png images or loading images with an esoteric format - then we could either use the `is_valid_file` argument of the `ImageFolder` class or use [`DatasetFolder`](https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.DatasetFolder) and provide a list of valid extensions to the `extensions` argument.
 """
 
-# from google.colab import drive
-# drive.mount('/content/drive')
-
-# !unzip -q /content/drive/MyDrive/Data_ml/maps/data_2.zip -d /content/drive/MyDrive/Data_ml/maps/
 
 ROOT = '/home/ubuntu/wb'
-TRAIN_RATIO = 0.8
+TRAIN_RATIO = 0.85
 
 data_dir = ROOT
 images_dir = ROOT
-train_dir = os.path.join(ROOT, 'data', 'train')
-test_dir = os.path.join(ROOT, 'data','test')
+train_dir = os.path.join(ROOT, 'data', 'new_train_ds','train')
+test_dir = os.path.join(ROOT, 'data','new_train_ds', 'test')
 
 """ 
 Run Block to split files into folders in train and test
@@ -249,15 +246,15 @@ train_data = datasets.ImageFolder(root = train_dir,
 means = torch.zeros(3)
 stds = torch.zeros(3)
 
-for img, label in train_data:
-    means += torch.mean(img, dim = (1,2))
-    stds += torch.std(img, dim = (1,2))
-
-means /= len(train_data)
-stds /= len(train_data)
-    
-print(f'Calculated means: {means}')
-print(f'Calculated stds: {stds}')
+# for img, label in train_data:
+#     means += torch.mean(img, dim = (1,2))
+#     stds += torch.std(img, dim = (1,2))
+#
+# means /= len(train_data)
+# stds /= len(train_data)
+#
+# print(f'Calculated means: {means}')
+# print(f'Calculated stds: {stds}')
 
 """Now to actually load our data. As we are going to be using a pre-trained model we will need to ensure that our images are the same size and have the same normalization as those used to train the model - which we find on the torchvision [models](https://pytorch.org/vision/stable/models.html) page.
 
@@ -271,6 +268,12 @@ pretrained_stds= [0.229, 0.224, 0.225]
 train_transforms = transforms.Compose([
                            transforms.Resize(pretrained_size),
                            transforms.RandomRotation(5),
+                            # transforms.RandomGrayscale(),
+                            transforms.RandomInvert(),
+                            transforms.RandomSolarize(threshold=50.0),
+                            transforms.RandomAutocontrast(),
+                            # transforms.RandomEqualize(),
+                            # # transforms.TrivialAugmentWide(),
                            transforms.RandomHorizontalFlip(0.5),
                            transforms.RandomCrop(pretrained_size, padding = 10),
                            transforms.ToTensor(),
@@ -317,8 +320,8 @@ print(f'Number of testing examples: {len(test_data)}')
 
 """Next, we'll create the iterators with the largest batch size that fits on our GPU. """
 
-BATCH_SIZE = 8
-
+BATCH_SIZE = 62
+sampler = data.RandomSampler(train_data, replacement=True, num_samples=2500)
 train_iterator = data.DataLoader(train_data, 
                                  shuffle = True, 
                                  batch_size = BATCH_SIZE)
@@ -363,15 +366,15 @@ def plot_images(images, labels, classes, normalize = True):
 
 """We can see the images look fine, however the names of the classes provided by the folders containing the images are a little long and sometimes overlap with neighbouring images."""
 
-N_IMAGES = 25
-
-images, labels = zip(*[(image, label) for image, label in 
-                           [train_data[i] for i in range(N_IMAGES)]])
-
+# N_IMAGES = 25
+#
+# images, labels = zip(*[(image, label) for image, label in
+#                            [train_data[i] for i in range(N_IMAGES)]])
+#
 classes = test_data.classes
-
-plot_images(images, labels, classes)
-plt.show()
+#
+# plot_images(images, labels, classes)
+# plt.show()
 
 
 """### Defining the Model
@@ -852,7 +855,7 @@ We start by initializing an optimizer with a very low learning rate, defining a 
 
 START_LR = 1e-7
 
-optimizer = optim.Adam(model.parameters(), lr=START_LR)
+optimizer = optim.Adam(model.parameters(), lr=START_LR, weight_decay=0.35)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -967,8 +970,8 @@ class IteratorWrapper:
 END_LR = 10
 NUM_ITER = 100
 
-lr_finder = LRFinder(model, optimizer, criterion, device)
-lrs, losses = lr_finder.range_test(train_iterator, END_LR, NUM_ITER)
+# lr_finder = LRFinder(model, optimizer, criterion, device)
+# lrs, losses = lr_finder.range_test(train_iterator, END_LR, NUM_ITER)
 
 """Next, we define a function to plot the results of the range test."""
 
@@ -995,15 +998,15 @@ def plot_lr_finder(lrs, losses, skip_start = 5, skip_end = 5):
 A good learning rate to choose here would be the middle of the steepest downward curve - which is around $1x10^{-3}$.
 """
 
-plot_lr_finder(lrs, losses, skip_start = 30, skip_end = 30)
-plt.show()
+# plot_lr_finder(lrs, losses, skip_start = 30, skip_end = 30)
+# plt.show()
 
 """We can then set the learning rates of our model using discriminative fine-tuning - a technique used in transfer learning where later layers in a model have higher learning rates than earlier ones.
 
 We use the learning rate found by the learning rate finder as the maximum learning rate - used in the final layer - whilst the remaining layers have a lower learning rate, gradually decreasing towards the input. 
 """
 
-FOUND_LR = 5 * 1e-5
+FOUND_LR = 5e-4
 
 params = [
           {'params': model.conv1.parameters(), 'lr': FOUND_LR / 10},
@@ -1016,7 +1019,7 @@ params = [
          ]
 
 
-optimizer = optim.Adam(params, lr = FOUND_LR)
+optimizer = optim.Adam(params, lr = FOUND_LR, weight_decay=0.25)
 
 """Next up, we set the learning rate scheduler. A learning rate scheduler dynamically alters the learning rate whilst the model is training. We'll be using the one cycle learning rate scheduler, however [many](https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate) schedulers are available in PyTorch.
 
@@ -1035,7 +1038,7 @@ The one cycle learning rate also cycles the momentum of the optimizer. The momen
 To set-up the one cycle learning rate scheduler we need the total number of steps that will occur during training. We simply get this by multiplying the number of epochs with the number of batches in the training iterator, i.e. number of parameter updates. We get the maximum learning rate for each parameter group and pass this to `max_lr`. **Note:** if you only pass a single learning rate and not a list of learning rates then the scheduler will assume this learning rate should be used for all parameters and will **not** do discriminative fine-tuning.
 """
 
-EPOCHS = 15
+EPOCHS = 20
 STEPS_PER_EPOCH = len(train_iterator)
 TOTAL_STEPS = EPOCHS * STEPS_PER_EPOCH
 
@@ -1094,12 +1097,13 @@ def train(model, iterator, optimizer, criterion, scheduler, device):
 
         acc_1, acc_5 = calculate_topk_accuracy(y_pred, y)
 
+
         loss.backward()
 
         optimizer.step()
 
         scheduler.step()
-
+        # print(f'traing loop. Epoch ={} Accuracy= {acc_1}')
         epoch_loss += loss.item()
         epoch_acc_1 += acc_1.item()
         epoch_acc_5 += acc_5.item()
@@ -1161,12 +1165,26 @@ We get around 80% top-1 and 95% top-5 validation accuracy.
 
 best_valid_loss = float('inf')
 
+train_loss_list = []
+val_loss_list = []
+train_acc_list = []
+val_acc_list = []
+
+
 for epoch in range(EPOCHS):
 
     start_time = time.monotonic()
 
     train_loss, train_acc_1, train_acc_5 = train(model, train_iterator, optimizer, criterion, scheduler, device)
     valid_loss, valid_acc_1, valid_acc_5 = evaluate(model, valid_iterator, criterion, device)
+
+    train_loss_list.append(train_loss)
+    val_loss_list.append(valid_loss)
+    train_acc_list.append(train_acc_1)
+    val_acc_list.append(valid_acc_1)
+
+    print(f'for epoch {epoch}, {train_loss_list},{val_loss_list},{train_acc_list}, {val_acc_list}')
+
 
     if valid_loss < best_valid_loss:
         best_valid_loss = valid_loss
@@ -1177,12 +1195,25 @@ for epoch in range(EPOCHS):
     epoch_mins, epoch_secs = epoch_time(start_time, end_time)
 
     print(f'Epoch: {epoch+1:02} | Epoch Time: {epoch_mins}m {epoch_secs}s')
-    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc @1: {train_acc_1*100:6.2f}% | ' \
-          f'Train Acc @1: {train_acc_5*100:6.2f}%')
-    print(f'\tValid Loss: {valid_loss:.3f} | Valid Acc @1: {valid_acc_1*100:6.2f}% | ' \
-          f'Valid Acc @1: {valid_acc_5*100:6.2f}%')
+    print(f'\tTrain Loss: {train_loss:.3f} | Train Acc @1: {train_acc_1*100:6.2f}% | '
+          )
+    print(f'\tValid Loss: {valid_loss:.3f} | Valid Acc @1: {valid_acc_1*100:6.2f}%')
 
 """The test accuracies are a little lower than the validation accuracies, but not by so much that we should be concerned."""
+
+
+plt.plot(train_loss_list, label='train_loss')
+plt.plot(val_loss_list,label='val_loss')
+plt.legend()
+plt.title('Traning and validation loss')
+plt.show()
+
+plt.plot(train_acc_list, label='Train Accuracy')
+plt.plot(val_acc_list,label='Validation Accuracy')
+plt.legend()
+plt.title('Training and validation Accuracy')
+plt.show()
+
 
 model.load_state_dict(torch.load('tut5-model.pt'))
 
@@ -1247,8 +1278,8 @@ def plot_confusion_matrix(labels, pred_labels, classes):
     cm.plot(values_format = 'd', cmap = 'Blues', ax = ax)
     fig.delaxes(fig.axes[1]) #delete colorbar
     plt.xticks(rotation = 90)
-    plt.xlabel('Predicted Label', fontsize = 50)
-    plt.ylabel('True Label', fontsize = 50)
+    plt.xlabel('Predicted Label', fontsize = 200)
+    plt.ylabel('True Label', fontsize = 200)
     plt.show()
 
 
@@ -1337,7 +1368,8 @@ def get_representations(model, iterator):
     return outputs, labels
 
 outputs, labels = get_representations(model, train_iterator)
-
+print(f'Before PCA outputs={outputs}')
+print(f'Before PCA labels={labels}')
 """We can then perform PCA on these representations to plot them in two dimensions."""
 
 def get_pca(data, n_components = 2):
@@ -1359,13 +1391,14 @@ def plot_representations(data, labels, classes, n_images = None):
 
     fig = plt.figure(figsize = (15, 15))
     ax = fig.add_subplot(111)
-    scatter = ax.scatter(data[:, 0], data[:, 1], c = labels, cmap = 'hsv')
-    #handles, _ = scatter.legend_elements(num = None)
-    #legend = plt.legend(handles = handles, labels = classes)
+    scatter = ax.scatter(data[:, 0], data[:, 1], c = labels, cmap = 'Dark2')
+    handles, _ = scatter.legend_elements(num = None)
+    legend = plt.legend(handles = handles, labels = classes)
 
 """The classes do not seem as well separated as in previous notebooks, although this is most probably due to there being so many classes."""
 
 output_pca_data = get_pca(outputs)
+print(f'pca_data = {output_pca_data}')
 plot_representations(output_pca_data, labels, classes)
 plt.show()
 

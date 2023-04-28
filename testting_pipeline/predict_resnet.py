@@ -186,6 +186,7 @@ data_dir = ROOT
 images_dir = ROOT
 train_dir = os.path.join(ROOT, 'data', 'train')
 test_dir = os.path.join(ROOT, 'data','to_prdict','images')
+prediction_dir = test_dir
 
 classes = os.listdir(train_dir)
 print(f'classes={classes}')
@@ -1014,7 +1015,7 @@ NUM_ITER = 100
 We use the learning rate found by the learning rate finder as the maximum learning rate - used in the final layer - whilst the remaining layers have a lower learning rate, gradually decreasing towards the input. 
 """
 
-FOUND_LR = 5 * 1e-5
+FOUND_LR = 1e-4
 
 params = [
           {'params': model.conv1.parameters(), 'lr': FOUND_LR / 10},
@@ -1248,7 +1249,7 @@ pred_labels = torch.argmax(probs, 1)
 pred_labels_list = pred_labels.tolist()
 
 result = pd.DataFrame({'index':image_index, 'predicted_label':pred_labels_list })
-result.to_csv('results')
+result.to_csv(f'{prediction_dir}/predictions.csv')
 
 
 

@@ -43,10 +43,3 @@ for i in filepaths_1:
 for i in filepaths_2:
     shutil.copy(datafolder+i, '/Users/kar/Documents/maps/Us images/data/2/')
 
-
-
-# %%
-import glob
-x1 = [x for x in glob.glob('/Users/kar/Documents/maps/tiles/**/*.shp', recursive = True)]
-
-# %%
